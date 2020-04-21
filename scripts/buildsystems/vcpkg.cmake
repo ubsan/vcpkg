@@ -264,7 +264,9 @@ endfunction()
 
 function(vcpkg_install_packages)
     execute_process(
-        COMMAND ${_VCPKG_ROOT_DIR}/vcpkg.exe install --triplet ${VCPKG_TARGET_TRIPLET} --binarycaching
+        COMMAND ${_VCPKG_ROOT_DIR}/vcpkg${CMAKE_EXECUTABLE_SUFFIX} install
+            --triplet ${VCPKG_TARGET_TRIPLET}
+            --binarycaching
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endfunction()
 

@@ -151,7 +151,29 @@ if(NOT DEFINED _VCPKG_ROOT_DIR)
     endwhile()
     set(_VCPKG_ROOT_DIR ${_VCPKG_ROOT_DIR_CANDIDATE} CACHE INTERNAL "Vcpkg root directory")
 endif()
-set(_VCPKG_INSTALLED_DIR ${_VCPKG_ROOT_DIR}/installed)
+
+if(NOT DEFINED _VCPKG_MANIFEST_DIR)
+    set(_VCPKG_MANIFEST_DIR_CANDIDATE ${CMAKE_SOURCE_DIR})
+    while(IS_DIRECTORY ${_VCPKG_MANIFEST_DIR_CANDIDATE} AND NOT _VCPKG_MANIFEST_DIR_DONE)
+        if(EXISTS ${_VCPKG_MANIFEST_DIR_CANDIDATE}/vcpkg.json)
+            set(_VCPKG_MANIFEST_DIR ${_VCPKG_MANIFEST_DIR_CANDIDATE} CACHE INTERNAL "Vcpkg manifest directory")
+            set(_VCPKG_MANIFEST_DIR_DONE ON)
+        else()
+            get_filename_component(_VCPKG_MANIFEST_DIR_TEMP ${_VCPKG_MANIFEST_DIR_CANDIDATE} DIRECTORY)
+            if(_VCPKG_MANIFEST_DIR_TEMP STREQUAL _VCPKG_MANIFEST_DIR_CANDIDATE) # we've reached the root
+                set(_VCPKG_MANIFEST_DIR_DONE ON)
+            else()
+                set(_VCPKG_MANIFEST_DIR_CANDIDATE ${_VCPKG_MANIFEST_DIR_TEMP})
+            endif()
+        endif()
+    endwhile()
+endif()
+
+if(DEFINED _VCPKG_MANIFEST_DIR)
+    set(_VCPKG_INSTALLED_DIR ${_VCPKG_MANIFEST_DIR}/vcpkg_modules)
+else()
+    set(_VCPKG_INSTALLED_DIR ${_VCPKG_ROOT_DIR}/installed)
+endif()
 
 if(CMAKE_BUILD_TYPE MATCHES "^[Dd][Ee][Bb][Uu][Gg]$" OR NOT DEFINED CMAKE_BUILD_TYPE) #Debug build: Put Debug paths before Release paths.
     list(APPEND CMAKE_PREFIX_PATH
@@ -263,6 +285,10 @@ function(add_library name)
 endfunction()
 
 function(vcpkg_install_packages)
+    if(NOT DEFINED _VCPKG_MANIFEST_DIR)
+        message(FATAL_ERROR "Attempted to vcpkg_install_packages without a manifest")
+    endif()
+
     execute_process(
         COMMAND ${_VCPKG_ROOT_DIR}/vcpkg${CMAKE_EXECUTABLE_SUFFIX} install
             --triplet ${VCPKG_TARGET_TRIPLET}

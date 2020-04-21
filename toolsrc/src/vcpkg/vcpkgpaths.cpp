@@ -73,6 +73,8 @@ namespace vcpkg
         paths.ports = paths.root / "ports";
         if (auto d = install_root_dir.get()) {
             paths.installed = fs.absolute(VCPKG_LINE_INFO, std::move(*d));
+        } else if (auto m = paths.manifest_root.get()) {
+            paths.installed = *m / "vcpkg_modules";
         } else {
             paths.installed = paths.root / "installed";
         }

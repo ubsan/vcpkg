@@ -58,6 +58,7 @@ namespace vcpkg
         };
 
         static Expected<VcpkgPaths> create(const fs::path& vcpkg_root_dir,
+                                           const Optional<fs::path>& manifest_root_dir,
                                            const Optional<fs::path>& install_root_dir,
                                            const Optional<fs::path>& vcpkg_scripts_root_dir,
                                            const std::string& default_vs_path,
@@ -73,6 +74,7 @@ namespace vcpkg
         const fs::path get_triplet_file_path(Triplet triplet) const;
 
         fs::path root;
+        Optional<fs::path> manifest_root;
         fs::path packages;
         fs::path buildtrees;
         fs::path downloads;

@@ -77,9 +77,10 @@ namespace vcpkg::Install
 
             const std::string filename = file.filename().u8string();
             if (fs::is_regular_file(status) && (Strings::case_insensitive_ascii_equals(filename, "CONTROL") ||
+                                                Strings::case_insensitive_ascii_equals(filename, "vcpkg.json") ||
                                                 Strings::case_insensitive_ascii_equals(filename, "BUILD_INFO")))
             {
-                // Do not copy the control file
+                // Do not copy the control file or manifest file
                 continue;
             }
 
@@ -515,7 +516,7 @@ namespace vcpkg::Install
 
     const CommandStructure COMMAND_STRUCTURE = {
         Help::create_example_string("install zlib zlib:x64-windows curl boost"),
-        1,
+        0,
         SIZE_MAX,
         {INSTALL_SWITCHES, INSTALL_SETTINGS},
         &get_all_port_names,
@@ -642,6 +643,10 @@ namespace vcpkg::Install
             return Input::check_and_get_full_package_spec(
                 std::string(arg), default_triplet, COMMAND_STRUCTURE.example_text);
         });
+
+        if (specs.empty()) {
+            Commands::SetInstalled::perform_and_exit(args, paths, default_triplet);
+        }
 
         for (auto&& spec : specs)
         {

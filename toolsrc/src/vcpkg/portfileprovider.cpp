@@ -64,7 +64,7 @@ namespace vcpkg::PortFileProvider
         for (auto&& ports_dir : ports_dirs)
         {
             // Try loading individual port
-            if (filesystem.exists(ports_dir / "CONTROL"))
+            if (Paragraphs::is_port_directory(filesystem, ports_dir))
             {
                 auto maybe_scf = Paragraphs::try_load_port(filesystem, ports_dir);
                 if (auto scf = maybe_scf.get())
@@ -84,9 +84,9 @@ namespace vcpkg::PortFileProvider
                         VCPKG_LINE_INFO, "Error: Failed to load port from %s", spec, ports_dir.u8string());
                 }
             }
-            else if (filesystem.exists(ports_dir / spec / "CONTROL"))
+            else if (auto ports_spec = ports_dir / spec; Paragraphs::is_port_directory(filesystem, ports_spec))
             {
-                auto found_scf = Paragraphs::try_load_port(filesystem, ports_dir / spec);
+                auto found_scf = Paragraphs::try_load_port(filesystem, ports_spec);
                 if (auto scf = found_scf.get())
                 {
                     if (scf->get()->core_paragraph->name == spec)
@@ -122,7 +122,7 @@ namespace vcpkg::PortFileProvider
         for (auto&& ports_dir : ports_dirs)
         {
             // Try loading individual port
-            if (filesystem.exists(ports_dir / "CONTROL"))
+            if (Paragraphs::is_port_directory(filesystem, ports_dir))
             {
                 auto maybe_scf = Paragraphs::try_load_port(filesystem, ports_dir);
                 if (auto scf = maybe_scf.get())

@@ -114,9 +114,16 @@ static void inner(const VcpkgCmdArguments& args)
         }
     }
 
-    Checks::check_exit(VCPKG_LINE_INFO, !vcpkg_root_dir.empty(), "Error: Could not detect vcpkg-root.");
+    Optional<fs::path> vcpkg_manifest_root_dir;
+    {
+        const fs::path current_path = fs.current_path(VCPKG_LINE_INFO);
+        auto manifest_root_dir = fs.find_file_recursively_up(current_path, "vcpkg.json");
 
-    Debug::print("Using vcpkg-root: ", vcpkg_root_dir.u8string(), '\n');
+        if (!manifest_root_dir.empty())
+        {
+            vcpkg_manifest_root_dir = manifest_root_dir;
+        }
+    }
 
     Optional<fs::path> install_root_dir;
     if (args.install_root_dir) {
@@ -134,7 +141,7 @@ static void inner(const VcpkgCmdArguments& args)
     auto default_vs_path = System::get_environment_variable("VCPKG_VISUAL_STUDIO_PATH").value_or("");
 
     const Expected<VcpkgPaths> expected_paths =
-        VcpkgPaths::create(vcpkg_root_dir, install_root_dir, vcpkg_scripts_root_dir, default_vs_path, args.overlay_triplets.get());
+        VcpkgPaths::create(vcpkg_root_dir, vcpkg_manifest_root_dir, install_root_dir, vcpkg_scripts_root_dir, default_vs_path, args.overlay_triplets.get());
     Checks::check_exit(VCPKG_LINE_INFO,
                        !expected_paths.error(),
                        "Error: Invalid vcpkg root directory %s: %s",

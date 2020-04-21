@@ -213,7 +213,7 @@ namespace vcpkg
             }
             else
             {
-                return U{std::move(error()), expected_right_tag};
+                return U{std::move(*this).error(), expected_right_tag};
             }
         }
 

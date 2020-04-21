@@ -14,6 +14,7 @@
 namespace vcpkg
 {
     Expected<VcpkgPaths> VcpkgPaths::create(const fs::path& vcpkg_root_dir,
+                                            const Optional<fs::path>& manifest_root_dir,
                                             const Optional<fs::path>& install_root_dir,
                                             const Optional<fs::path>& vcpkg_scripts_root_dir,
                                             const std::string& default_vs_path,
@@ -29,6 +30,10 @@ namespace vcpkg
 
         VcpkgPaths paths;
         paths.root = canonical_vcpkg_root_dir;
+        if (auto val = manifest_root_dir.get()) {
+            paths.manifest_root = fs.canonical(*val, ec);
+            if (ec) return ec;
+        }
         paths.default_vs_path = default_vs_path;
 
         if (paths.root.empty())

@@ -14,7 +14,8 @@ namespace vcpkg::Paragraphs
     ExpectedS<std::vector<Paragraph>> get_paragraphs(const Files::Filesystem& fs, const fs::path& control_path);
     ExpectedS<std::vector<Paragraph>> parse_paragraphs(const std::string& str, const std::string& origin);
 
-    Parse::ParseExpected<SourceControlFile> try_load_port(const Files::Filesystem& fs, const fs::path& control_path);
+    bool is_port_directory(const Files::Filesystem& fs, const fs::path& path);
+    Parse::ParseExpected<SourceControlFile> try_load_port(const Files::Filesystem& fs, const fs::path& path);
 
     ExpectedS<BinaryControlFile> try_load_cached_package(const VcpkgPaths& paths, const PackageSpec& spec);
 

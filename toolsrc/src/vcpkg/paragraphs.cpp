@@ -128,9 +128,40 @@ namespace vcpkg::Paragraphs
         return PghParser(str, origin).get_paragraphs();
     }
 
+    bool is_port_directory(const Files::Filesystem& fs, const fs::path& path) {
+        return fs.exists(path / "CONTROL") || fs.exists(path / "vcpkg.json");
+    }
+
     ParseExpected<SourceControlFile> try_load_port(const Files::Filesystem& fs, const fs::path& path)
     {
+        const auto path_to_manifest = path / "vcpkg.json";
         const auto path_to_control = path / "CONTROL";
+        if (fs.exists(path_to_manifest)) {
+            vcpkg::Checks::check_exit(
+                VCPKG_LINE_INFO,
+                !fs.exists(path_to_control),
+                "Found both manifest and CONTROl file in port %s; please rename one or the other",
+                path.generic_u8string());
+
+            std::error_code ec;
+            auto res = Json::parse_file(fs, path_to_manifest, ec);
+            if (ec) vcpkg::Checks::exit_with_message(VCPKG_LINE_INFO, ec.message());
+            if (auto val = res.get()) {
+                if (val->first.is_object()) {
+                    return SourceControlFile::parse_manifest_file(path_to_manifest, val->first.object());
+                } else {
+                    auto error_info = std::make_unique<ParseControlErrorInfo>();
+                    error_info->name = path.filename().generic_u8string();
+                    error_info->error = "Manifest files must have a top-level object";
+                    return error_info;
+                }
+            } else {
+                auto error_info = std::make_unique<ParseControlErrorInfo>();
+                error_info->name = path.filename().generic_u8string();
+                error_info->error = res.error()->format();
+                return error_info;
+            }
+        }
         ExpectedS<std::vector<Paragraph>> pghs = get_paragraphs(fs, path_to_control);
         if (auto vector_pghs = pghs.get())
         {

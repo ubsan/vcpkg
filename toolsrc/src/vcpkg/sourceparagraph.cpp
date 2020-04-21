@@ -21,12 +21,25 @@ namespace vcpkg
         static const std::string DEFAULTFEATURES = "Default-Features";
         static const std::string DESCRIPTION = "Description";
         static const std::string FEATURE = "Feature";
-        static const std::string MAINTAINER = "Maintainer";
+        static const std::string MAINTAINERS = "Maintainer";
         static const std::string SOURCE = "Source";
         static const std::string VERSION = "Version";
         static const std::string HOMEPAGE = "Homepage";
         static const std::string TYPE = "Type";
         static const std::string SUPPORTS = "Supports";
+    }
+
+    namespace ManifestFields
+    {
+        static const std::string BUILD_DEPENDS = "dependencies";
+        static const std::string DEFAULTFEATURES = "default_features";
+        static const std::string DESCRIPTION = "description";
+        static const std::string FEATURE = "features";
+        static const std::string MAINTAINERS = "maintainers";
+        static const std::string SOURCE = "name";
+        static const std::string VERSION = "version";
+        static const std::string HOMEPAGE = "homepage";
+        static const std::string SUPPORTS = "supports";
     }
 
     static Span<const std::string> get_list_of_valid_fields()
@@ -35,11 +48,26 @@ namespace vcpkg
             SourceParagraphFields::SOURCE,
             SourceParagraphFields::VERSION,
             SourceParagraphFields::DESCRIPTION,
-            SourceParagraphFields::MAINTAINER,
+            SourceParagraphFields::MAINTAINERS,
             SourceParagraphFields::BUILD_DEPENDS,
             SourceParagraphFields::HOMEPAGE,
             SourceParagraphFields::TYPE,
             SourceParagraphFields::SUPPORTS,
+        };
+
+        return valid_fields;
+    }
+
+    static Span<const StringView> get_list_of_manifest_fields()
+    {
+        static const StringView valid_fields[] = {
+            ManifestFields::SOURCE,
+            ManifestFields::VERSION,
+            ManifestFields::DESCRIPTION,
+            ManifestFields::MAINTAINERS,
+            ManifestFields::BUILD_DEPENDS,
+            ManifestFields::HOMEPAGE,
+            ManifestFields::SUPPORTS,
         };
 
         return valid_fields;
@@ -127,7 +155,12 @@ namespace vcpkg
         parser.required_field(SourceParagraphFields::VERSION, spgh->version);
 
         spgh->description = parser.optional_field(SourceParagraphFields::DESCRIPTION);
-        spgh->maintainer = parser.optional_field(SourceParagraphFields::MAINTAINER);
+
+        spgh->maintainers = Strings::split(parser.optional_field(SourceParagraphFields::MAINTAINERS), "\n");
+        for (auto& maintainer : spgh->maintainers) {
+            maintainer = Strings::trim(std::move(maintainer));
+        }
+
         spgh->homepage = parser.optional_field(SourceParagraphFields::HOMEPAGE);
         TextRowCol textrowcol;
         std::string buf;
@@ -196,6 +229,115 @@ namespace vcpkg
 
         return control_file;
     }
+
+
+    static std::vector<std::string> invalid_json_fields(
+        const Json::Object& obj, Span<const StringView> known_fields) noexcept
+    {
+        const auto field_is_unknown = [known_fields](StringView sv) {
+            // allow directives
+            if (sv.size() != 0 && *sv.begin() == '$') {
+                return false;
+            }
+            return std::find(known_fields.begin(), known_fields.end(), sv) == known_fields.end();
+        };
+
+        std::vector<std::string> res;
+        for (const auto& kv : obj) {
+            if (field_is_unknown(kv.first)) {
+                res.push_back(kv.first.to_string());
+            }
+        }
+
+        return res;
+    }
+
+
+    Parse::ParseExpected<SourceControlFile> SourceControlFile::parse_manifest_file(
+        const fs::path& path_to_manifest, const Json::Object& manifest)
+    {
+        const auto invalid_fields = invalid_json_fields(manifest, get_list_of_manifest_fields());
+        if (!invalid_fields.empty()) {
+            vcpkg::Checks::exit_fail(VCPKG_LINE_INFO);
+        }
+
+        auto control_file = std::make_unique<SourceControlFile>();
+
+        auto source_paragraph = std::make_unique<SourceParagraph>();
+        auto name = manifest.get(ManifestFields::SOURCE);
+        if (!name || !name->is_string()) {
+            vcpkg::Checks::exit_fail(VCPKG_LINE_INFO);
+        } else {
+            source_paragraph->name = name->string().to_string();
+        }
+
+        auto version = manifest.get(ManifestFields::VERSION);
+        if (!version || !version->is_string()) {
+            vcpkg::Checks::exit_fail(VCPKG_LINE_INFO);
+        } else {
+            source_paragraph->version = version->string().to_string();
+        }
+
+        if (auto description = manifest.get(ManifestFields::DESCRIPTION)) {
+            if (description->is_string()) {
+                source_paragraph->description = description->string().to_string();
+            } else if (description->is_array()) {
+                for (auto&& el : description->array()) {
+                    if (el.is_string()) {
+                        const auto str = el.string();
+                        source_paragraph->description.append(str.begin(), str.end());
+                        source_paragraph->description.append("  \n");
+                    } else {
+                        vcpkg::Checks::exit_fail(VCPKG_LINE_INFO);
+                    }
+                }
+            } else {
+                vcpkg::Checks::exit_fail(VCPKG_LINE_INFO);
+            }
+        }
+
+        if (auto maintainers = manifest.get(ManifestFields::MAINTAINERS)) {
+            if (maintainers->is_array()) {
+                for (auto&& el : maintainers->array()) {
+                    if (el.is_string()) {
+                        source_paragraph->maintainers.push_back(el.string().to_string());
+                    } else {
+                        vcpkg::Checks::exit_fail(VCPKG_LINE_INFO);
+                    }
+                }
+            } else {
+                vcpkg::Checks::exit_fail(VCPKG_LINE_INFO);
+            }
+        }
+
+        if (auto homepage = manifest.get(ManifestFields::HOMEPAGE)) {
+            if (homepage->is_string()) {
+                source_paragraph->homepage = homepage->string().to_string();
+            } else {
+                vcpkg::Checks::exit_fail(VCPKG_LINE_INFO);
+            }
+        }
+
+        if (auto deps = manifest.get(ManifestFields::BUILD_DEPENDS)) {
+            if (!deps->is_array()) {
+                vcpkg::Checks::exit_fail(VCPKG_LINE_INFO);
+            }
+
+            for (auto const& dep: deps->array()) {
+                if (!dep.is_string()) {
+                    vcpkg::Checks::exit_fail(VCPKG_LINE_INFO);
+                }
+                vcpkg::Dependency real_dep;
+                real_dep.depend.name = dep.string().to_string();
+                source_paragraph->depends.push_back(real_dep);
+            }
+        }
+
+        control_file->core_paragraph = std::move(source_paragraph);
+        return control_file;
+    }
+
+
 
     Optional<const FeatureParagraph&> SourceControlFile::find_feature(const std::string& featurename) const
     {

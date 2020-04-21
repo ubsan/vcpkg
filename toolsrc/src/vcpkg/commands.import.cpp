@@ -88,6 +88,7 @@ namespace vcpkg::Commands::Import
         fs.create_directory(library_destination_path, ec);
         place_library_files_in(paths.get_filesystem(), include_directory, project_directory, library_destination_path);
 
+        // TODO: figure out how to get this working with manifests
         const fs::path control_file_path = library_destination_path / "CONTROL";
         fs.write_contents(control_file_path, Strings::serialize(control_file_data), VCPKG_LINE_INFO);
     }

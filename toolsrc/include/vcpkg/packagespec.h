@@ -125,8 +125,6 @@ namespace vcpkg
     {
         Features depend;
         std::string qualifier;
-
-        static ExpectedS<Dependency> from_string(const std::string& input);
     };
 
     struct ParsedQualifiedSpecifier

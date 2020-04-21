@@ -33,7 +33,7 @@ namespace vcpkg
         PackageSpec spec;
         std::string version;
         std::string description;
-        std::string maintainer;
+        std::vector<std::string> maintainers;
         std::string feature;
         std::vector<std::string> default_features;
         std::vector<std::string> depends;

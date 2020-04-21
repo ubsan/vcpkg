@@ -49,7 +49,10 @@ namespace vcpkg
         this->feature = parser.optional_field(Fields::FEATURE);
 
         this->description = parser.optional_field(Fields::DESCRIPTION);
-        this->maintainer = parser.optional_field(Fields::MAINTAINER);
+        this->maintainers = Strings::split(parser.optional_field(Fields::MAINTAINER), "\n");
+        for (auto& maintainer: this->maintainers) {
+            maintainer = Strings::trim(std::move(maintainer));
+        }
 
         this->abi = parser.optional_field(Fields::ABI);
 
@@ -87,7 +90,7 @@ namespace vcpkg
                                      const std::vector<FeatureSpec>& deps)
         : version(spgh.version)
         , description(spgh.description)
-        , maintainer(spgh.maintainer)
+        , maintainers(spgh.maintainers)
         , abi(abi_tag)
         , type(spgh.type)
     {
@@ -100,7 +103,7 @@ namespace vcpkg
                                      const FeatureParagraph& fpgh,
                                      Triplet triplet,
                                      const std ::vector<FeatureSpec>& deps)
-        : version(), description(fpgh.description), maintainer(), feature(fpgh.name), type(spgh.type)
+        : version(), description(fpgh.description), maintainers(), feature(fpgh.name), type(spgh.type)
     {
         this->spec = PackageSpec(spgh.name, triplet);
         this->depends = Util::fmap(deps, [](const FeatureSpec& spec) { return spec.spec().name(); });
@@ -138,7 +141,16 @@ namespace vcpkg
         out_str.append("Architecture: ").append(pgh.spec.triplet().to_string()).push_back('\n');
         out_str.append("Multi-Arch: same\n");
 
-        if (!pgh.maintainer.empty()) out_str.append("Maintainer: ").append(pgh.maintainer).push_back('\n');
+        if (!pgh.maintainers.empty())
+        {
+            out_str.append("Maintainer: ");
+            bool first = true;
+            for (const auto& maintainer : pgh.maintainers) {
+                if (!first) out_str.push_back('\t');
+                out_str.append(maintainer);
+                out_str.push_back('\n');
+            }
+        }
         if (!pgh.abi.empty()) out_str.append("Abi: ").append(pgh.abi).push_back('\n');
         if (!pgh.description.empty()) out_str.append("Description: ").append(pgh.description).push_back('\n');
 

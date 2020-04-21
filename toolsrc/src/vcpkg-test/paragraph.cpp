@@ -45,7 +45,7 @@ TEST_CASE ("SourceParagraph construct minimum", "[paragraph]")
 
     REQUIRE(pgh.core_paragraph->name == "zlib");
     REQUIRE(pgh.core_paragraph->version == "1.2.8");
-    REQUIRE(pgh.core_paragraph->maintainer == "");
+    REQUIRE(pgh.core_paragraph->maintainers.empty());
     REQUIRE(pgh.core_paragraph->description == "");
     REQUIRE(pgh.core_paragraph->depends.size() == 0);
 }
@@ -65,7 +65,8 @@ TEST_CASE ("SourceParagraph construct maximum", "[paragraph]")
 
     REQUIRE(pgh.core_paragraph->name == "s");
     REQUIRE(pgh.core_paragraph->version == "v");
-    REQUIRE(pgh.core_paragraph->maintainer == "m");
+    REQUIRE(pgh.core_paragraph->maintainers.size() == 1);
+    REQUIRE(pgh.core_paragraph->maintainers[0] == "m");
     REQUIRE(pgh.core_paragraph->description == "d");
     REQUIRE(pgh.core_paragraph->depends.size() == 1);
     REQUIRE(pgh.core_paragraph->depends[0].depend.name == "bd");
@@ -116,7 +117,7 @@ TEST_CASE ("SourceParagraph construct qualified depends", "[paragraph]")
 
     REQUIRE(pgh.core_paragraph->name == "zlib");
     REQUIRE(pgh.core_paragraph->version == "1.2.8");
-    REQUIRE(pgh.core_paragraph->maintainer == "");
+    REQUIRE(pgh.core_paragraph->maintainers.empty());
     REQUIRE(pgh.core_paragraph->description == "");
     REQUIRE(pgh.core_paragraph->depends.size() == 2);
     REQUIRE(pgh.core_paragraph->depends[0].depend.name == "liba");
@@ -150,7 +151,7 @@ TEST_CASE ("BinaryParagraph construct minimum", "[paragraph]")
 
     REQUIRE(pgh.spec.name() == "zlib");
     REQUIRE(pgh.version == "1.2.8");
-    REQUIRE(pgh.maintainer == "");
+    REQUIRE(pgh.maintainers.empty());
     REQUIRE(pgh.description == "");
     REQUIRE(pgh.spec.triplet().canonical_name() == "x86-windows");
     REQUIRE(pgh.depends.size() == 0);
@@ -170,7 +171,8 @@ TEST_CASE ("BinaryParagraph construct maximum", "[paragraph]")
 
     REQUIRE(pgh.spec.name() == "s");
     REQUIRE(pgh.version == "v");
-    REQUIRE(pgh.maintainer == "m");
+    REQUIRE(pgh.maintainers.size() == 1);
+    REQUIRE(pgh.maintainers[0] == "m");
     REQUIRE(pgh.description == "d");
     REQUIRE(pgh.depends.size() == 1);
     REQUIRE(pgh.depends[0] == "bd");

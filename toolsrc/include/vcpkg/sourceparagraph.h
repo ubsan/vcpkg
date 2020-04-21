@@ -1,13 +1,12 @@
 #pragma once
 
-#include <string>
 #include <vcpkg/base/expected.h>
+#include <vcpkg/base/json.h>
 #include <vcpkg/base/span.h>
 #include <vcpkg/base/system.h>
 #include <vcpkg/base/system.print.h>
 #include <vcpkg/packagespec.h>
 #include <vcpkg/paragraphparser.h>
-#include <vector>
 
 namespace vcpkg
 {
@@ -46,7 +45,7 @@ namespace vcpkg
         std::string name;
         std::string version;
         std::string description;
-        std::string maintainer;
+        std::vector<std::string> maintainers;
         std::string homepage;
         std::vector<Dependency> depends;
         std::vector<std::string> default_features;
@@ -68,6 +67,9 @@ namespace vcpkg
                 feature_paragraphs.emplace_back(std::make_unique<FeatureParagraph>(*feat_ptr));
             }
         }
+
+        static Parse::ParseExpected<SourceControlFile> parse_manifest_file(
+            const fs::path& path_to_manifest, const Json::Object& object);
 
         static Parse::ParseExpected<SourceControlFile> parse_control_file(
             const fs::path& path_to_control, std::vector<Parse::Paragraph>&& control_paragraphs);

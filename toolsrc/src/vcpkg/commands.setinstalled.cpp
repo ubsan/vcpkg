@@ -7,6 +7,7 @@
 #include <vcpkg/input.h>
 #include <vcpkg/install.h>
 #include <vcpkg/remove.h>
+#include <vcpkg/paragraphs.h>
 #include <vcpkg/portfileprovider.h>
 #include <vcpkg/vcpkglib.h>
 
@@ -14,7 +15,7 @@ namespace vcpkg::Commands::SetInstalled
 {
     const CommandStructure COMMAND_STRUCTURE = {
         Help::create_example_string(R"(x-set-installed <package>...)"),
-        1,
+        0,
         SIZE_MAX,
         {},
         nullptr,
@@ -25,10 +26,24 @@ namespace vcpkg::Commands::SetInstalled
         // input sanitization
         const ParsedArguments options = args.parse_arguments(COMMAND_STRUCTURE);
 
-        const std::vector<FullPackageSpec> specs = Util::fmap(args.command_arguments, [&](auto&& arg) {
+        std::vector<FullPackageSpec> specs = Util::fmap(args.command_arguments, [&](auto&& arg) {
             return Input::check_and_get_full_package_spec(
                 std::string(arg), default_triplet, COMMAND_STRUCTURE.example_text);
         });
+
+        bool keep_different_triplet = false;
+
+        if (specs.empty() && paths.manifest_root.has_value()) {
+            auto res = Paragraphs::try_load_port(paths.get_filesystem(), paths.manifest_root.value_or_exit(VCPKG_LINE_INFO));
+            if (auto val = res.get()) {
+                for (auto& dep : (*val)->core_paragraph->depends) {
+                    auto spec = Input::check_and_get_full_package_spec(
+                        std::move(dep.depend.name), default_triplet, COMMAND_STRUCTURE.example_text);
+                    specs.push_back(spec);
+                }
+            }
+            keep_different_triplet = true;
+        }
 
         for (auto&& spec : specs)
         {
@@ -79,9 +94,13 @@ namespace vcpkg::Commands::SetInstalled
             if (status_pgh->package.is_feature()) continue;
 
             const auto& abi = status_pgh->package.abi;
-            if (abi.empty() || !Util::Sets::contains(all_abis, abi))
+            auto abi_accounted_for = !abi.empty() && Util::Sets::contains(all_abis, abi);
+            if (!abi_accounted_for)
             {
-                specs_to_remove.push_back(status_pgh->package.spec);
+                if (!keep_different_triplet || status_pgh->package.spec.triplet() == default_triplet)
+                {
+                    specs_to_remove.push_back(status_pgh->package.spec);
+                }
             }
         }
 

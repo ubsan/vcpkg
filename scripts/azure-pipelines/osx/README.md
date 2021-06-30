@@ -5,26 +5,87 @@
 - [`vcpkg-eg-mac` VMs](#vcpkg-eg-mac-vms)
   - [Table of Contents](#table-of-contents)
   - [Basic Usage](#basic-usage)
-  - [Setting up a new macOS machine](#setting-up-a-new-macos-machine)
+    - [Cleaning Up](#cleaning-up)
+    - [Getting the New Requirements](#getting-the-new-requirements)
+    - [Setting up a new macOS machine](#setting-up-a-new-macos-machine)
     - [Troubleshooting](#troubleshooting)
   - [Creating a new Vagrant box](#creating-a-new-vagrant-box)
     - [VM Software Versions](#vm-software-versions)
-    - [(Internal) Accessing the macOS fileshare](#internal-accessing-the-macos-fileshare)
 
 ## Basic Usage
 
-The simplest usage, and one which should be used for when spinning up
-new VMs, and when restarting old ones, is a simple:
+If this is the first time you're setting up a new machine,
+follow the instructions in [Setting up a new macOS machine](#setting-up-a-new-macos-machine)
+first, then start reading at [Getting the New Requirements](#getting-the-new-requirements).
 
+### Cleaning Up
+
+When starting a new macOS vagrant virtual machine, the first thing to do is to
+make certain that any current virtual machine running is shut down and deleted.
+If `~/vagrant/vcpkg-eg-mac` exists, you'll want to:
+
+```sh
+$ pushd ~/vagrant/vcpkg-eg-mac
+$ vagrant destroy -f
+$ popd
+$ rm -rf ~/vagrant/vcpkg-eg-mac
 ```
+
+Then, you'll be able to delete any existing boxes, apart from the version that
+you need:
+
+```sh
+$ vagrant box list
+$ vagrant box delete vcpkg/macos-ci --box-version <old-date>
+```
+
+After this, you're ready to get the requirements for the new box.
+
+### Getting the New Requirements
+
+First, you'll want to install the prerequisites;
+this includes stuff like brew and osxfuse:
+
+```sh
+$ ./Install-Prerequisites.ps1
+```
+
+This may ask for your password.
+This is because we need to use `sudo` to install some pieces of software.
+
+Next, let's try to mount the fileshare,
+so that we can get the new box for the VM.
+
+```sh
+$ sshfs fileshare@<fileshare-machine>:share ~/vagrant/share
+```
+
+If this succeeds, you're good.
+Otherwise, you may have to go through the [troubleshooting steps](#troubleshooting:sshfs).
+
+Once you've gotten `share` mounted, you'll be able to add the box to vagrant.
+
+```sh
+$ vagrant box add ~/vagrant/share/boxes/macos-ci.json --box-version <date-of-box>
+```
+
+This will take a while. We suggest using tmux to do this, so as to avoid the connection dropping.
+
+Once this is finished, you'll have everything you need to set up the VM and run it.
+Parallels is kinda weird, and it requires the GUI to be logged into;
+so, KVM in and log in for just this part (you can still run everything from SSH).
+Grab a PAT with manage access to agent pools from the Azure website,
+and finally run:
+
+```sh
+$ ./Setup-VagrantMachines.ps1 -Date <date-of-box> -DevopsPat <pat>
 $ cd ~/vagrant/vcpkg-eg-mac
 $ vagrant up
 ```
 
-Any modifications to the machines should be made in `configuration/Vagrantfile`
-and `Setup-VagrantMachines.ps1`, and make sure to push any changes!
+And then you should be finished!
 
-## Setting up a new macOS machine
+### Setting up a new macOS machine
 
 Before anything else, one must download `brew` and `powershell`.
 
@@ -48,57 +109,16 @@ $ cat .ssh/id_rsa.pub
 
 Add that SSH key to `authorized_keys` on the file share machine with the base box.
 
-Next, install prerequisites and grab the current base box with:
-```sh
-$ cd vcpkg/scripts/azure-pipelines/osx
-$ ./Install-Prerequisites.ps1 -Force
-$ ./Get-InternalBaseBox.ps1 -FileshareMachine vcpkgmm-01.guest.corp.microsoft.com -BoxVersion 2020-09-28
-```
-
-... where -BoxVersion is the version you want to use.
-
-Getting the base box will fail due to missing kernel modules for osxfuse, sshfs, and/or VirtualBox.
-Log in to the machine, open System Preferences > Security & Privacy > General, and allow the kernel
-extensions for VirtualBox and sshfs to load. Then, again:
-
-```sh
-$ ./Get-InternalBaseBox.ps1 -FileshareMachine vcpkgmm-01.guest.corp.microsoft.com -BoxVersion 2020-09-28
-```
-
-Replace `XX` with the number of
-the virtual machine. Generally, that should be the same as the number
-for the physical machine; i.e., vcpkgmm-04 would use 04.
-
-```sh
-  # NOTE: you may get an error about CoreCLR; see the following paragraph if you do
-$ ./Setup-VagrantMachines.ps1 \
-  -MachineId XX \
-  -DevopsPat '<get this from azure devops; it needs agent pool read and manage access>' \
-  -Date <this is the date of the pool; 2021-04-16 at time of writing>
-$ cd ~/vagrant/vcpkg-eg-mac
-$ vagrant up
-```
-
-If you see the following error:
-
-```
-Failed to initialize CoreCLR, HRESULT: 0x8007001F
-```
-
-You have to reboot the machine; run
-
-```sh
-$ sudo shutdown -r now
-```
-
-and wait for the machine to start back up. Then, start again from where the error was emitted.
+After this, you can follow the instructions for setting up a virtual machine in
+(Basic Usage)[#basic-usage].
 
 ### Troubleshooting
 
-The following are issues that we've run into:
-
-- (with a Parallels box) `vagrant up` doesn't work, and vagrant gives the error that the VM is `'stopped'`.
-  - Try logging into the GUI with the KVM, and retrying `vagrant up`.
+- <a name="troubleshooting:sshfs" /> When running `sshfs`, a kernel module is required.
+  macOS requires kernel modules to be approved by the GUI.
+  Log in to the machine, open System Preferences > Security & Privacy > General,
+  and allow system extensions from the osxfuse developer to run.
+  Then, reboot the machine.
 
 ## Creating a new Vagrant box
 
@@ -199,28 +219,6 @@ Once you've done that, add the software versions under [VM Software Versions](#v
 * 2021-04-16:
   * macOS: 11.2.3
   * Xcode CLTs: 12.4
-
-### (Internal) Accessing the macOS fileshare
-
-The fileshare is located on `vcpkgmm-01`, under the `fileshare` user, in the `share` directory.
-In order to get `sshfs` working on the physical machine,
-You can run `Install-Prerequisites.ps1` to grab the right software, then either:
-
-```sh
-$ mkdir vagrant/share
-$ sshfs fileshare@<vcpkgmm-01 URN>:/Users/fileshare/share vagrant/share
-```
-
-or you can just run
-
-```sh
-$ ./Get-InternalBaseBox.ps1
-```
-
-which will do the thing automatically.
-
-If you get an error, that means that gatekeeper has prevented the kernel extension from loading,
-so you'll need to access the GUI of the machine, go to System Preferences,
-Security & Privacy, General, unlock the settings,
-and allow system extensions from the osxfuse developer to run.
-Then, you'll be able to add the fileshare as an sshfs.
+* 2021-07-01:
+  * macOS: 
+  * Xcode CLTs:

@@ -220,5 +220,5 @@ Once you've done that, add the software versions under [VM Software Versions](#v
   * macOS: 11.2.3
   * Xcode CLTs: 12.4
 * 2021-07-01:
-  * macOS: 
+  * macOS: 11.4.0
   * Xcode CLTs:

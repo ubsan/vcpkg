@@ -107,6 +107,11 @@
                       Lines="@(_VcpkgInstallManifestDependenciesInputs -> '^%(Identity)')"
                       Encoding="Unicode"
                       Overwrite="true"/>
+    <!--
+      in cases where the installed directory has not yet been created,
+      we need to create before we write the stamp file 
+    -->
+    <MakeDir Directories="$(VcpkgInstalledDir)" />
     <Touch Files="$(_ZVcpkgMSBuildStampFile)" AlwaysCreate="true" />
 
     <CreateProperty Value="false">

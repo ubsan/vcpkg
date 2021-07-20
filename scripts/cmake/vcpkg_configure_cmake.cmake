@@ -112,7 +112,7 @@ function(vcpkg_configure_cmake)
     endif()
 
     set(NINJA_CAN_BE_USED ON) # Ninja as generator
-    set(NINJA_HOST ON) # Ninja as parallel configurator
+    set(NINJA_HOST OFF) # Ninja as parallel configurator
 
     if(VCPKG_CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
         set(_TARGETTING_UWP 1)
